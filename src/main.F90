@@ -49,6 +49,8 @@ program HartreeFock
   integer :: i, j
   !variable to hold the filename
   character(100) :: filename
+  !array to hold density matrix calculated at the previous iteration, used to check for convergence
+  real(8), allocatable  :: D_previous(:,:)
   
 
   print *, "please enter the name of the file"
@@ -108,7 +110,9 @@ program HartreeFock
   !allocating memory for Fock matrix and Density matrix
   allocate (F(n_AO,n_AO))
   allocate (D(n_AO,n_AO))
-
+  allocate (D_previous(n_AO, n_AO))
+  !initializing D_previous matrix to 0 for the first iteration
+  D_previous = 0.0_8
 
   !SCF loop
   do
@@ -129,13 +133,17 @@ program HartreeFock
     ! Compute the Hartree-Fock energy
     E_HF = sum((core_hamiltonian+F) * D)
     !calculate convergence
-    convergence = E_HF - previous_energy
+    convergence = sqrt( sum ( abs( (D-D_previous)**2)))
     !exit loop if convergence is lower than treshold
     if (abs(convergence) < convergence_treshold) exit
     !update previous energy
     previous_energy = E_HF
+    !update previous density
+    D_previous = D
     ! Diagonalize the Fock matrix to get new coefficients
     call solve_genev (F,S,C,eps)
+
+
   enddo
 
 
