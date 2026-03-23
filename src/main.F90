@@ -51,6 +51,8 @@ program HartreeFock
   character(100) :: filename
   !array to hold density matrix calculated at the previous iteration, used to check for convergence
   real(8), allocatable  :: D_previous(:,:)
+  !variable for the maximum amount of iterations
+  integer :: maximum_number_iterations
   
 
   print *, "please enter the name of the file"
@@ -114,9 +116,19 @@ program HartreeFock
   !initializing D_previous matrix to 0 for the first iteration
   D_previous = 0.0_8
 
+  !setting the maximum number of iterations
+  maximum_number_iterations = 100
+
   !SCF loop
   do
   number_iterations_scf_loop = number_iterations_scf_loop + 1
+  
+    !if statement to exit loop if the maximum number of iterations has been exceded
+    if (number_iterations_scf_loop > maximum_number_iterations) then
+      print *, "error: maximum number of iterations reached"
+      exit
+    endif
+
   ! Form the density matrix
     do lambda = 1, n_AO
         do kappa = 1, n_AO
@@ -142,6 +154,8 @@ program HartreeFock
       print *, "---------------------"
       exit
     endif
+
+
 
     !update previous energy
     previous_energy = E_HF
@@ -197,13 +211,11 @@ end program
     call add_atoms_to_molecule(molecule,charge,coord)
   end subroutine
 
-  subroutine define_basis(ao_basis)
-    ! This routine can be extended to use better basis sets 
-    ! The coordinates of the shell centers are the nuclear coordinates
-    ! Think of a refactoring of define_molecule and define_basis to ensure consistency 
+  subroutine define_basis(ao_basis) 
     use ao_basis
-    type(basis_set_info_t), intent(inout) :: ao_basis
-    type(basis_func_info_t) :: gto
+    type(basis_set_info_t), intent(inout)   :: ao_basis
+    type(basis_func_info_t)                 :: gto
+    
     ! Atom 1 (H): 3 uncontracted s-functions centered at Z = 0.0
     call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),3.D0)
     call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),1.D0)  
