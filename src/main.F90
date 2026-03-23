@@ -135,7 +135,14 @@ program HartreeFock
     !calculate convergence
     convergence = sqrt( sum ( abs( (D-D_previous)**2)))
     !exit loop if convergence is lower than treshold
-    if (abs(convergence) < convergence_treshold) exit
+    if (abs(convergence) < convergence_treshold) then
+      print *, "convergence reached"
+      print *, "---------------------"
+      print *, "Number of steps needed to converge: ", number_iterations_scf_loop
+      print *, "---------------------"
+      exit
+    endif
+
     !update previous energy
     previous_energy = E_HF
     !update previous density
@@ -159,8 +166,10 @@ program HartreeFock
   enddo
   E_HF = E_HF + nuclear_repulsion
 
+  !printing hartree fock energy
   print '("The Hartree-Fock energy:    ", (F12.4))', E_HF 
   print *, "---------------------"
+  
 
 end program
 
