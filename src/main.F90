@@ -70,7 +70,7 @@ program HartreeFock
 
 
   ! Definition of the GTOs
-  call define_basis(ao_basis)
+  call define_basis(ao_basis, molecule, number_atoms)
   n_AO = ao_basis%nao
 
   ! Definition of the number of occupied orbitals
@@ -211,19 +211,23 @@ end program
     call add_atoms_to_molecule(molecule,charge,coord)
   end subroutine
 
-  subroutine define_basis(ao_basis) 
+  subroutine define_basis(ao_basis, molecule, number_atoms)
+    ! This routine can be extended to use better basis sets 
+    ! The coordinates of the shell centers are the nuclear coordinates
+    ! Think of a refactoring of define_molecule and define_basis to ensure consistency 
     use ao_basis
+    use molecular_structure
     type(basis_set_info_t), intent(inout)   :: ao_basis
     type(basis_func_info_t)                 :: gto
-    
-    ! Atom 1 (H): 3 uncontracted s-functions centered at Z = 0.0
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),3.D0)
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),1.D0)  
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),1.D-1)
-    ! Atom 2 (H): 3 uncontracted s-functions centered at Z = 0.74 angstroms which is 1.4 bohrs
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,14.D-1/),3.D0)
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,14.D-1/),1.D0)  
-    call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,14.D-1/),1.D-1)
+    integer, intent(in)                     :: number_atoms
+    type(molecular_structure_t), intent(in) :: molecule
+    integer                                 :: i
+    !do loop to place the basis function on molecule coordinates
+    do i = 1, number_atoms
+      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)  
+      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+    enddo
   end subroutine
 
    
