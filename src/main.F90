@@ -211,10 +211,7 @@ end program
     call add_atoms_to_molecule(molecule,charge,coord)
   end subroutine
 
-  subroutine define_basis(ao_basis, molecule, number_atoms)
-    ! This routine can be extended to use better basis sets 
-    ! The coordinates of the shell centers are the nuclear coordinates
-    ! Think of a refactoring of define_molecule and define_basis to ensure consistency 
+  subroutine define_basis(ao_basis, molecule, number_atoms) 
     use ao_basis
     use molecular_structure
     type(basis_set_info_t), intent(inout)   :: ao_basis
@@ -224,9 +221,26 @@ end program
     integer                                 :: i
     !do loop to place the basis function on molecule coordinates
     do i = 1, number_atoms
-      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
-      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)  
-      call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+      !for hydrogen 3 s functions
+      if (molecule%charge(i) == 1) then
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)  
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+      else
+      !for all non-hydrogen elements 5 s functions, 3 p functions and 1 d function
+        !s functions
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),35.D-2)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D1)
+        !p functions
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),2.D-1)
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),1.D0)
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),5.D0)
+        !d function
+        call add_shell_to_basis(ao_basis,2,molecule%coord(:,i),1.D0)
+      endif
     enddo
   end subroutine
 
