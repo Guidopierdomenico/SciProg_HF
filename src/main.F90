@@ -40,6 +40,14 @@ program HartreeFock
   real(8) :: convergence_treshold
   !variable to keep track of convergence
   real(8) :: convergence
+  !variable to calculate distance between a pair of atoms
+  real(8) :: distance_ij
+  !variable to calculate nuclear repulsion
+  real(8) :: nuclear_repulsion
+  !variable for the number of atoms in the molecule
+  integer :: n_atoms
+  !loop variables
+  integer :: i, j
 
 
   ! Definition of the molecule
@@ -125,12 +133,25 @@ program HartreeFock
 
   enddo
 
+  n_atoms = 2
 
+  !add nuclear repulsion
+  nuclear_repulsion = 0.0_8
+  do j = 1 + 1, n_atoms
+    do i = 1, n_atoms - 1
+      !calculate distance between atom i and atom j
+      distance_ij = sqrt( sum( (molecule%coord(:,i)-molecule%coord(:,j))**2 ) )
+      !add repulsion energy of the pair to the total
+      nuclear_repulsion = nuclear_repulsion + (molecule%charge(i)*molecule%charge(j))/distance_ij
+    enddo
+  enddo
+  E_HF = E_HF + nuclear_repulsion
 
   print*, "The Hartree-Fock energy:    ", E_HF
   !print '((F12.4))', 
 
 end
+
 
    subroutine define_molecule(molecule)
      ! This routine should be improved such that an arbitrary molecule can be given as input
