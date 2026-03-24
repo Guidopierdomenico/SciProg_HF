@@ -181,7 +181,7 @@ program HartreeFock
   E_HF = E_HF + nuclear_repulsion
 
   !printing hartree fock energy
-  print '("The Hartree-Fock energy:    ", (F12.4))', E_HF 
+  print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
   print *, "---------------------"
   
 
