@@ -1,7 +1,6 @@
 program HartreeFock
 
-  ! Demonstration program that can be used as a starting point
-  ! Lucas Visscher, March 2022
+  ! Guido Pierdomenico, march 2026
 
   use molecular_structure
   use ao_basis
@@ -45,20 +44,38 @@ program HartreeFock
   !variable to calculate nuclear repulsion
   real(8) :: nuclear_repulsion
   !variable for the number of atoms in the molecule
-  integer :: n_atoms
+  integer :: number_atoms
   !loop variables
   integer :: i, j
+  !variable to hold the filename
+  character(100) :: filename
+  !array to hold density matrix calculated at the previous iteration, used to check for convergence
+  real(8), allocatable  :: D_previous(:,:)
+  !variable for the maximum amount of iterations
+  integer :: maximum_number_iterations
+  
 
+  print *, "please enter the name of the file"
+  print *, "---------------------"
+  read *, filename
+  print *, "you entered ", filename
+  print *, "---------------------"
+
+  
+
+  
 
   ! Definition of the molecule
-  call define_molecule(molecule)
+  call define_molecule(molecule, filename, number_atoms)
+
 
   ! Definition of the GTOs
-  call define_basis(ao_basis)
+  call define_basis(ao_basis, molecule, number_atoms)
   n_AO = ao_basis%nao
 
   ! Definition of the number of occupied orbitals
-  n_occ = 3 ! hardwired for this demonstration program, should be set via input
+  n_occ = sum(molecule%charge)/2 !total number of electrons is equal to the sum of all the nuclear charges in the molecule, and then n_occ is just the total number of electrons divided by 2
+
 
   ! Compute the overlap matrix
   allocate (S(n_AO,n_AO))
@@ -79,8 +96,9 @@ program HartreeFock
   allocate (C(n_AO,n_AO))
   allocate (eps(n_AO))
   call solve_genev (core_hamiltonian,S,C,eps)
-  print*, "Orbital energies for the core Hamiltonian:",eps
-
+  print '("Orbital energies for the core Hamiltonian:")'
+  print '((F12.4))', eps
+  print *, "---------------------"
 
   !initializing variables for scf loop
   convergence_treshold = 1.0d-9
@@ -94,51 +112,66 @@ program HartreeFock
   !allocating memory for Fock matrix and Density matrix
   allocate (F(n_AO,n_AO))
   allocate (D(n_AO,n_AO))
+  allocate (D_previous(n_AO, n_AO))
+  !initializing D_previous matrix to 0 for the first iteration
+  D_previous = 0.0_8
 
+  !setting the maximum number of iterations
+  maximum_number_iterations = 100
 
   !SCF loop
   do
-
   number_iterations_scf_loop = number_iterations_scf_loop + 1
+  
+    !if statement to exit loop if the maximum number of iterations has been exceded
+    if (number_iterations_scf_loop > maximum_number_iterations) then
+      print *, "error: maximum number of iterations reached"
+      exit
+    endif
+
   ! Form the density matrix
-  do lambda = 1, n_AO
-      do kappa = 1, n_AO
-        D(kappa,lambda) = sum(C(kappa,1:n_occ)*C(lambda,1:n_occ))
+    do lambda = 1, n_AO
+        do kappa = 1, n_AO
+          D(kappa,lambda) = sum(C(kappa,1:n_occ)*C(lambda,1:n_occ))
+      end do
     end do
-  end do
-
-  !Construct  the Fock matrix
-  F = core_hamiltonian
-  do nu = 1, n_AO
-    do mu = 1, n_AO
-      F = F + (2.D0 * ao_integrals(:,:,mu,nu) - ao_integrals(:,nu,mu,:))* D(mu, nu)
+    !Construct  the Fock matrix
+    F = core_hamiltonian
+    do nu = 1, n_AO
+      do mu = 1, n_AO
+        F = F + (2.D0 * ao_integrals(:,:,mu,nu) - ao_integrals(:,nu,mu,:))* D(mu, nu)
+      enddo
     enddo
+    ! Compute the Hartree-Fock energy
+    E_HF = sum((core_hamiltonian+F) * D)
+    !calculate convergence
+    convergence = sqrt( sum ( abs( (D-D_previous)**2)))
+    !exit loop if convergence is lower than treshold
+    if (abs(convergence) < convergence_treshold) then
+      print *, "convergence reached"
+      print *, "---------------------"
+      print *, "Number of steps needed to converge: ", number_iterations_scf_loop
+      print *, "---------------------"
+      exit
+    endif
+
+
+
+    !update previous energy
+    previous_energy = E_HF
+    !update previous density
+    D_previous = D
+    ! Diagonalize the Fock matrix to get new coefficients
+    call solve_genev (F,S,C,eps)
+
+
   enddo
 
-  ! Compute the Hartree-Fock energy
-  E_HF = sum((core_hamiltonian+F) * D)
- 
-
-  !calculate convergence
-  convergence = E_HF - previous_energy
-  !exit loop if convergence is lower than treshold
-  if (abs(convergence) < convergence_treshold) exit
-  !update previous energy
-  previous_energy = E_HF
-
-  ! Diagonalize the Fock matrix to get new coefficients
-  call solve_genev (F,S,C,eps)
-
-    
-
-  enddo
-
-  n_atoms = 2
 
   !add nuclear repulsion
   nuclear_repulsion = 0.0_8
-  do j = 1 + 1, n_atoms
-    do i = 1, n_atoms - 1
+  do j = 2, number_atoms
+    do i = 1, j-1
       !calculate distance between atom i and atom j
       distance_ij = sqrt( sum( (molecule%coord(:,i)-molecule%coord(:,j))**2 ) )
       !add repulsion energy of the pair to the total
@@ -147,38 +180,69 @@ program HartreeFock
   enddo
   E_HF = E_HF + nuclear_repulsion
 
-  print*, "The Hartree-Fock energy:    ", E_HF
-  !print '((F12.4))', 
+  !printing hartree fock energy
+  print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
+  print *, "---------------------"
+  
 
-end
+end program
 
 
-   subroutine define_molecule(molecule)
-     ! This routine should be improved such that an arbitrary molecule can be given as input
-     ! the coordinates below are for a be-he dimer oriented along the x-axis with a bond length of 2 au
-     use molecular_structure
-     type(molecular_structure_t), intent(inout) :: molecule
-     real(8) :: charge(2),coord(3,2)
-     charge(1)   = 4.D0
-     charge(2)   = 2.D0
-     coord       = 0.D0
-     coord(1,2)  = 2.D0
-     call add_atoms_to_molecule(molecule,charge,coord)
-   end subroutine
+  subroutine define_molecule(molecule, filename, number_atoms)
+    use molecular_structure
+    type(molecular_structure_t), intent(inout) :: molecule
+    character(len=*), intent(in)               :: filename
+    integer, intent(out)                       :: number_atoms
+    real(8), allocatable                       :: charge(:),coord(:,:)
+    integer                                    :: i
 
-   subroutine define_basis(ao_basis)
-    ! This routine can be extended to use better basis sets 
-    ! The coordinates of the shell centers are the nuclear coordinates
-    ! Think of a refactoring of define_molecule and define_basis to ensure consistency 
-     use ao_basis
-     type(basis_set_info_t), intent(inout) :: ao_basis
-     type(basis_func_info_t) :: gto
-     ! Be:  2 uncontracted s-funs:    l      coord          exp      
-     call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),4.D0)
-     call add_shell_to_basis(ao_basis,0,(/0.D0,0.D0,0.D0/),1.D0)
-     ! He:  1 uncontracted s-fun:     l      coord          exp      
-     call add_shell_to_basis(ao_basis,0,(/2.D0,0.D0,0.D0/),1.D0)
-   end subroutine
+    !reading the number of atoms from the input file
+    open(10, file = filename, status='old')
+    read(10, *) number_atoms
+    !allocating charges and coordinates arrays using number of atoms just read
+    allocate(charge(number_atoms))
+    allocate(coord(3, number_atoms))
+    !loop to read the charges and coordinates from the file
+    do i = 1, number_atoms
+      read(10, *) charge(i), coord(:,i)
+    enddo
+    close(10)
+
+    call add_atoms_to_molecule(molecule,charge,coord)
+  end subroutine
+
+  subroutine define_basis(ao_basis, molecule, number_atoms) 
+    use ao_basis
+    use molecular_structure
+    type(basis_set_info_t), intent(inout)   :: ao_basis
+    type(basis_func_info_t)                 :: gto
+    integer, intent(in)                     :: number_atoms
+    type(molecular_structure_t), intent(in) :: molecule
+    integer                                 :: i
+    !do loop to place the basis function on molecule coordinates
+    do i = 1, number_atoms
+      !for hydrogen 3 s functions
+      if (molecule%charge(i) == 1) then
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)  
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+      else
+      !for all non-hydrogen elements 5 s functions, 3 p functions and 1 d function
+        !s functions
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),35.D-2)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+        call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D1)
+        !p functions
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),2.D-1)
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),1.D0)
+        call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),5.D0)
+        !d function
+        call add_shell_to_basis(ao_basis,2,molecule%coord(:,i),1.D0)
+      endif
+    enddo
+  end subroutine
 
    
 
