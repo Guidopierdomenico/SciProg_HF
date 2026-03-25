@@ -106,7 +106,7 @@ program HartreeFock
   allocate (eps(n_AO))
   call solve_genev (core_hamiltonian,S,C,eps)
   print '("Orbital energies for the core Hamiltonian:")'
-  print '((F12.4))', eps
+  print '((F12.4), " Hartrees")', eps
   print *, "---------------------"
 
   !initializing variables for scf loop
@@ -205,6 +205,13 @@ program HartreeFock
   !add nuclear repulsion
   E_HF = E_HF + nuclear_repulsion
 
+  !printing alpha and beta orbital energies
+  print '("Orbital energies for the alpha orbitals:")'
+  print '((F12.4), " Hartrees")', eps_alpha
+  print *, "---------------------"
+  print '("Orbital energies for the beta orbitals:")'
+  print '((F12.4), " Hartrees")', eps_beta
+  print *, "---------------------"
   !printing hartree fock energy
   print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
   print *, "---------------------"
