@@ -33,8 +33,6 @@ program HartreeFock
 
   !variable to keep track of the number of iterations of the scf loop
   integer :: number_iterations_scf_loop
-  !variable to temporarily store the calculated energy so that it can be confronted with the following iteration to check for convergenve
-  real(8) :: previous_energy
   !variable to set the convergence treshold
   real(8) :: convergence_treshold
   !variables to keep track of convergence for both Density matrices
@@ -112,7 +110,6 @@ program HartreeFock
   !initializing variables for scf loop
   convergence_treshold = 1.0d-9
   number_iterations_scf_loop = 0
-  previous_energy = 0.0_8
 
   ! Compute all 2-electron integrals
   allocate (ao_integrals(n_AO,n_AO,n_AO,n_AO))
