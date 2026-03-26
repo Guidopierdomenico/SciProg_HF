@@ -6,6 +6,7 @@ program HartreeFock
   use ao_basis
   use compute_integrals
   use diagonalization
+  use LinearSystem
 
   implicit none
 
@@ -59,7 +60,21 @@ program HartreeFock
   integer :: n_alpha, n_beta, n_total
   !variable for the maximum amount of iterations
   integer :: maximum_number_iterations
-  
+  !arrays hold the error matrix used for DIIS
+  real(8), allocatable :: error_matrix_alpha(:,:), error_matrix_beta(:,:)
+  !DIIS routine memory matrices
+  real(8), allocatable :: F_alpha_memory(:,:,:), F_beta_memory(:,:,:), error_matrix_alpha_memory(:,:,:), error_matrix_beta_memory(:,:,:)
+  !DIIS matrices for the new Fock matrices
+  real(8), allocatable :: F_alpha_new(:,:), F_beta_new(:,:)
+  !DIIS matrices for linear system of equation
+  real(8), allocatable :: B_DIIS(:,:), A_DIIS(:,:), rhs_DIIS(:), coeffs_DIIS(:)
+  !variable to set maximum amount of matrices to be held by the DIIS routine memory matrices
+  integer :: max_DIIS
+  !loop variable for DIIS loops
+  integer :: m
+
+
+
 
   print *, "please enter the name of the file"
   print *, "---------------------"
@@ -135,10 +150,28 @@ program HartreeFock
   !setting initial value of coeficcients matrices
   C_alpha = C
   C_beta = C
+  
+  !setting max amount of matrices to be held by DIIS memory arrays
+  max_DIIS = 10
+  !allocating arrays for DIIS routine
+  allocate(error_matrix_alpha(n_AO,n_AO))
+  allocate(error_matrix_beta(n_AO, n_AO))
+  allocate(F_alpha_memory(n_AO,n_AO, max_DIIS))
+  allocate(F_beta_memory(n_AO,n_AO, max_DIIS))
+  allocate(F_alpha_new(n_AO,n_AO))
+  allocate(F_beta_new(n_AO,n_AO))
+  allocate(error_matrix_alpha_memory(n_AO,n_AO, max_DIIS))
+  allocate(error_matrix_beta_memory(n_AO,n_AO, max_DIIS))
+  allocate(B_DIIS(max_DIIS, max_DIIS))
+  allocate(A_DIIS(max_DIIS+1, max_DIIS+1))
+  allocate(rhs_DIIS(max_DIIS+1))
+  allocate(coeffs_DIIS(max_DIIS+1))
+
   !SCF loop
   do
-  number_iterations_scf_loop = number_iterations_scf_loop + 1
-  
+    number_iterations_scf_loop = number_iterations_scf_loop + 1
+    !setting the loop variable for the DIIS loops
+    m = min(number_iterations_scf_loop, max_DIIS)
     !if statement to exit loop if the maximum number of iterations has been exceded
     if (number_iterations_scf_loop > maximum_number_iterations) then
       print *, "error: maximum number of iterations reached"
@@ -164,11 +197,66 @@ program HartreeFock
     enddo
     ! Compute the Hartree-Fock energy
     E_HF = 0.5D0 * sum((core_hamiltonian + F_alpha) * D_alpha) + 0.5D0 * sum((core_hamiltonian + F_beta) * D_beta)
-    !calculate convergence
-    convergence_alpha = sqrt( sum ( abs( (D_alpha-D_alpha_previous)**2)))
-    convergence_beta = sqrt( sum ( abs( (D_beta-D_beta_previous)**2)))
+
+    !calculating error matrix to check for DIIS convergence
+    error_matrix_alpha = matmul(matmul(F_alpha, D_alpha), S) - matmul(matmul(S, D_alpha), F_alpha)
+    error_matrix_beta = matmul(matmul(F_beta, D_beta), S) - matmul(matmul(S, D_beta), F_beta) 
+    !creating a memory of the SCF loop matrices to be used for the DIIS routine
+    !filling first all of the available slots
+    if (number_iterations_scf_loop <= max_DIIS) then 
+      !Fock matrices memory
+      F_alpha_memory(:,:,number_iterations_scf_loop) = F_alpha
+      F_beta_memory(:,:,number_iterations_scf_loop) = F_beta
+      !Error matrices memory
+      error_matrix_alpha_memory(:,:,number_iterations_scf_loop) = error_matrix_alpha
+      error_matrix_beta_memory(:,:,number_iterations_scf_loop) = error_matrix_beta
+    !when the memory array is full move everything down by one slot, making space for the matrix of the current iteration
+    else
+      !Fock matrices memory
+      F_alpha_memory(:,:,1:max_DIIS-1) = F_alpha_memory(:,:,2:max_DIIS)
+      F_alpha_memory(:,:,max_DIIS) = F_alpha
+      F_beta_memory(:,:,1:max_DIIS-1) = F_beta_memory(:,:,2:max_DIIS)
+      F_beta_memory(:,:,max_DIIS) = F_beta
+      !Error matrices memory
+      error_matrix_alpha_memory(:,:,1:max_DIIS-1) = error_matrix_alpha_memory(:,:,2:max_DIIS)
+      error_matrix_alpha_memory(:,:,max_DIIS) = error_matrix_alpha
+      error_matrix_beta_memory(:,:,1:max_DIIS-1) = error_matrix_beta_memory(:,:,2:max_DIIS)
+      error_matrix_beta_memory(:,:,max_DIIS) = error_matrix_beta
+    endif 
+
+    !Constructing B matrix for DIIS routine
+    !loop until the current iteration until memory has been filled
+    do j = 1, m
+      do i = 1, m
+            B_DIIS(i,j) = sum(error_matrix_alpha_memory(:,:,i) * error_matrix_alpha_memory(:,:,j)) + sum(error_matrix_beta_memory(:,:,i) * error_matrix_beta_memory(:,:,j))
+        enddo
+    enddo
+    !Constructing A matrix for DIIS routine
+    A_DIIS = 0.0_8
+    A_DIIS(:m, :m) = B_DIIS(:m,:m)
+    A_DIIS(:m, m+1) = -1.0_8
+    A_DIIS(m+1, :m) = -1.0_8 
+    !Constructing rhs vector for DIIS routine
+    rhs_DIIS = 0.0_8
+    rhs_DIIS(m+1) = -1.0_8
+
+    !Solviing the system of equations to find tge DIIS coefficients
+    call linearsolver(A_DIIS(:m+1, :m+1), rhs_DIIS(1:m+1), coeffs_DIIS(1:m+1))
+
+    !Calculate a new Fock matrix using the DIIS coefficients and the Fock matrix memory
+    F_alpha_new = 0.0_8
+    do i = 1, m
+      F_alpha_new = F_alpha_new + coeffs_DIIS(i)*F_alpha_memory(:,:, i)
+    enddo
+    F_beta_new = 0.0_8
+    do i = 1, m
+      F_beta_new = F_beta_new + coeffs_DIIS(i)*F_beta_memory(:,:, i)
+    enddo
+
+  
+
     !exit loop if convergence is lower than treshold
-    if ((abs(convergence_alpha) < convergence_treshold) .and. (abs(convergence_beta) < convergence_treshold)) then
+    if (( maxval(abs(error_matrix_alpha)) < convergence_treshold) .and. ( maxval(abs(error_matrix_beta)) < convergence_treshold)) then
       print *, "convergence reached"
       print *, "---------------------"
       print *, "Number of steps needed to converge: ", number_iterations_scf_loop
@@ -177,13 +265,12 @@ program HartreeFock
     endif
 
 
-
     !update previous density
     D_alpha_previous = D_alpha
     D_beta_previous = D_beta
     ! Diagonalize the Fock matrix to get new coefficients
-    call solve_genev (F_alpha,S,C_alpha,eps_alpha)
-    call solve_genev (F_beta,S,C_beta,eps_beta)
+    call solve_genev (F_alpha_new,S,C_alpha,eps_alpha)
+    call solve_genev (F_beta_new,S,C_beta,eps_beta)
 
 
   enddo
