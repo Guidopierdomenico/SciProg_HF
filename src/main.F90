@@ -8,6 +8,7 @@ program HartreeFock
   use LinearSystem
   use SCF_loop
   use DIIS
+  use core_hamiltonian
   implicit none
 
   ! Variable containing the molecular structure
@@ -52,31 +53,19 @@ program HartreeFock
   ! Definition of the GTOs
   call define_basis(ao_basis, molecule, number_atoms)
   n_AO = ao_basis%nao
-
   ! Definition of the number of  number of spin up and spin down orbitals
   n_total = nint(sum(molecule%charge))
   n_beta = n_total/2
   n_alpha = n_total - n_beta
 
-  ! Compute the overlap matrix
-  allocate (S(n_AO,n_AO))
-  call   compute_1e_integrals ("OVL",ao_basis,ao_basis,S)
-  ! Compute the kinetic matrix
-  allocate (T(n_AO,n_AO))
-  call   compute_1e_integrals ("KIN",ao_basis,ao_basis,T)
-  ! Compute the potential matrix
-  allocate (V(n_AO,n_AO))
-  call   compute_1e_integrals ("POT",ao_basis,ao_basis,V,molecule)
-  ! Compute the core Hamiltonian matrix (the potential is positive, we scale with -e = -1 to get to the potential energy matrix)
+  !allocate arrays
   allocate(core_hamiltonian(n_AO,n_AO))
-  core_hamiltonian = T - V
-  ! Diagonalize the core hamiltonian matrix
-  allocate (C(n_AO,n_AO))
-  allocate (eps(n_AO))
-  call solve_genev (core_hamiltonian,S,C,eps)
-  print '("Orbital energies for the core Hamiltonian:")'
-  print '((F12.4), " Hartrees")', eps
-  print *, "---------------------"
+  allocate(S(n_AO,n_AO))
+  allocate(C(n_AO,n_AO))
+  allocate(eps((n_AO)))
+
+  !construct core hamiltonian
+  call construct_core_hamiltonian(molecule, ao_basis, n_AO, core_hamiltonian, S, C, eps)
 
 
   ! Compute all 2-electron integrals
