@@ -54,5 +54,28 @@
 
         end subroutine
 
-       end module molecular_structure
+        subroutine define_molecule(molecule, filename, number_atoms)
+          type(molecular_structure_t), intent(inout) :: molecule
+          character(len=*), intent(in)               :: filename
+          integer, intent(out)                       :: number_atoms
+          real(8), allocatable                       :: charge(:),coord(:,:)
+          integer                                    :: i
 
+          !reading the number of atoms from the input file
+          open(10, file = filename, status='old')
+          read(10, *) number_atoms
+          !allocating charges and coordinates arrays using number of atoms just read
+          allocate(charge(number_atoms))
+          allocate(coord(3, number_atoms))
+          !loop to read the charges and coordinates from the file
+          do i = 1, number_atoms
+            read(10, *) charge(i), coord(:,i)
+          enddo
+          close(10)
+
+          call add_atoms_to_molecule(molecule,charge,coord)
+        end subroutine
+  
+  end module molecular_structure
+
+       
