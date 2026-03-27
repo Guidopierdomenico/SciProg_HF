@@ -12,27 +12,23 @@ program HartreeFock
   use InputOutput
   implicit none
 
-  ! Variable containing the molecular structure
+  ! Variable for the characteristics of the molecule and the basis set
   type(molecular_structure_t) :: molecule
-  ! Variable containing the atomic orbital basis
   type(basis_set_info_t) :: ao_basis
-  ! Variable naming as in the description of the exercise
-  integer  :: n_AO, n_occ
-  integer  :: kappa, lambda, mu, nu
+  integer  :: n_AO
+  integer :: number_atoms
+  integer :: n_alpha, n_beta, n_total
+
+  !Hartree fock variables
   real(8)  :: E_HF
   real(8), allocatable :: core_hamiltonian(:,:), S(:,:), C(:,:), eps(:)
-  !array to hold atomic orbitals integrals
   real(8), allocatable :: ao_integrals (:,:,:,:)
-  !variable for the number of atoms in the molecule
-  integer :: number_atoms
-  !variable to hold the filename
+   real(8), allocatable :: eps_alpha(:), eps_beta(:)
+ 
+  !variables for user input
   character(100) :: filename
-  !variable to hold the answer for DIIS use
-  integer :: DIIS_use
-  !variable for number of alpha orbitals and number of beta orbitals
-  integer :: n_alpha, n_beta, n_total
-  !variable for orbital energies
-  real(8), allocatable :: eps_alpha(:), eps_beta(:)
+  integer :: DIIS_use 
+
 
 
   !asking user which file they want to analyze and whether they want to use DIIS or not
@@ -80,4 +76,5 @@ program HartreeFock
   !print orbital energies and hartree fock eneregy
   call Print_orbital_energies_after_SCF(eps_alpha, eps_beta)
   call Print_HFenergy(E_HF)
+  
 end program

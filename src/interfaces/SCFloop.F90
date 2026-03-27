@@ -7,39 +7,33 @@ module SCF_loop
 
 contains
     subroutine Calculate_Hartree_Fock_Energy(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
-        ! Variable containing the molecular structure
+        !variables passed in from main
         type(molecular_structure_t), intent(in) :: molecule
-        ! Variable naming as in the description of the exercise
         real(8), intent(in) :: core_hamiltonian(:,:), S(:,:), C(:,:)
         integer, intent(in)  :: n_AO
-        integer  :: kappa, lambda, mu, nu
         real(8), intent(in) :: ao_integrals (:,:,:,:)
-        !variable for number of alpha orbitals and number of beta orbitals
         integer, intent(in) :: n_alpha, n_beta
-        !variable to keep track of the number of iterations of the scf loop
-        integer :: number_iterations_scf_loop
-        !variable to set the convergence treshold
-        real(8) :: convergence_treshold
-        !variables to keep track of convergence for both Density matrices
-        real(8) :: convergence_alpha, convergence_beta
-        !variable to calculate distance between a pair of atoms
+    
+        !molecule characteristics
         real(8) :: distance_ij
-        !variable to calculate nuclear repulsion
         real(8) :: nuclear_repulsion
-        !variable for the number of atoms in the molecule
         integer :: number_atoms
+
         !loop variables
-        integer :: i, j
-        !arrays to hold Fock matrices for both alpha spin and beta spin
-        real(8)  :: F_alpha(n_AO,n_AO), F_beta(n_AO,n_AO)
-        !arrays to hold coefficients and orbitals energies for both alpha spin and beta spin
-        real(8)  :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO)
-        !array to hold density matrix calculated at the previous iteration, used to check for convergence
-        real(8)  :: D_alpha_previous(n_AO,n_AO), D_beta_previous(n_AO,n_AO)
-        !array to hold density matrices for alpha spin and for beta spin and total density matrix
-        real(8)  :: D_alpha(n_AO,n_AO), D_beta(n_AO,n_AO), D_total(n_AO,n_AO)
-        !variable for the maximum amount of iterations
+        integer  :: kappa, lambda, mu, nu, i, j
+        
+        !convergence paramenters
+        integer :: number_iterations_scf_loop
         integer :: maximum_number_iterations
+        real(8) :: convergence_treshold
+        real(8) :: convergence_alpha, convergence_beta
+      
+        !SCF matrices
+        real(8)  :: F_alpha(n_AO,n_AO), F_beta(n_AO,n_AO)
+        real(8)  :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO)
+        real(8)  :: D_alpha_previous(n_AO,n_AO), D_beta_previous(n_AO,n_AO)
+        real(8)  :: D_alpha(n_AO,n_AO), D_beta(n_AO,n_AO), D_total(n_AO,n_AO)
+      
 
         !output variables
         real(8), intent(out) :: E_HF

@@ -9,7 +9,7 @@ module DIIS
 contains
 
     subroutine DIIS_loop(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
-        !Arguments passed in from Main)
+        !Arguments passed in from Main
         type(molecular_structure_t), intent(in) :: molecule
         integer, intent(in)                     :: n_AO, number_atoms, n_alpha, n_beta
         real(8), intent(in)                     :: core_hamiltonian(n_AO,n_AO), S(n_AO,n_AO)
@@ -19,13 +19,13 @@ contains
         !DIIS Parameter to set max amount of matrices to be held by DIIS memory arrays
         integer, parameter :: max_DIIS = 10
 
-        !Standard Local Memory
+        !SCF matrices
         real(8) :: F_alpha(n_AO,n_AO), F_beta(n_AO,n_AO)
         real(8) :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO)
         real(8) :: D_alpha(n_AO,n_AO), D_beta(n_AO,n_AO), D_total(n_AO,n_AO)
         real(8) :: D_alpha_previous(n_AO,n_AO), D_beta_previous(n_AO,n_AO)
         
-         !IIS-Specific Memory (Automatically sized using n_AO and max_DIIS)
+        !DIIS matrices
         real(8) :: F_alpha_new(n_AO,n_AO), F_beta_new(n_AO,n_AO)
         real(8) :: error_matrix_alpha(n_AO,n_AO), error_matrix_beta(n_AO,n_AO)
         real(8) :: F_alpha_memory(n_AO,n_AO, max_DIIS), F_beta_memory(n_AO,n_AO, max_DIIS)
@@ -33,10 +33,14 @@ contains
         real(8) :: B_DIIS(max_DIIS, max_DIIS), A_DIIS(max_DIIS+1, max_DIIS+1)
         real(8) :: rhs_DIIS(max_DIIS+1), coeffs_DIIS(max_DIIS+1)
 
-        ! Local Variables
+        !convergence parameters
         integer :: number_iterations_scf_loop, maximum_number_iterations
-        integer :: kappa, lambda, mu, nu, i, j, m
         real(8) :: convergence_treshold, convergence_alpha, convergence_beta
+
+        !loop variables
+        integer :: kappa, lambda, mu, nu, i, j, m
+        
+        !molecular characteristics
         real(8) :: distance_ij, nuclear_repulsion
 
         !output variables
@@ -131,7 +135,7 @@ contains
             rhs_DIIS = 0.0_8
             rhs_DIIS(m+1) = -1.0_8
 
-            !Solviing the system of equations to find tge DIIS coefficients
+            !Solving the system of equations to find tge DIIS coefficients
             call linearsolver(A_DIIS(:m+1, :m+1), rhs_DIIS(1:m+1), coeffs_DIIS(1:m+1))
 
             !Calculate a new Fock matrix using the DIIS coefficients and the Fock matrix memory
