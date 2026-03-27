@@ -8,7 +8,7 @@ module DIIS
 
 contains
 
-    subroutine DIIS_loop(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals)
+    subroutine DIIS_loop(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
         !Arguments passed in from Main)
         type(molecular_structure_t), intent(in) :: molecule
         integer, intent(in)                     :: n_AO, number_atoms, n_alpha, n_beta
@@ -24,7 +24,6 @@ contains
         real(8) :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO)
         real(8) :: D_alpha(n_AO,n_AO), D_beta(n_AO,n_AO), D_total(n_AO,n_AO)
         real(8) :: D_alpha_previous(n_AO,n_AO), D_beta_previous(n_AO,n_AO)
-        real(8) :: eps_alpha(n_AO), eps_beta(n_AO)
         
          !IIS-Specific Memory (Automatically sized using n_AO and max_DIIS)
         real(8) :: F_alpha_new(n_AO,n_AO), F_beta_new(n_AO,n_AO)
@@ -37,8 +36,12 @@ contains
         ! Local Variables
         integer :: number_iterations_scf_loop, maximum_number_iterations
         integer :: kappa, lambda, mu, nu, i, j, m
-        real(8) :: E_HF, convergence_treshold, convergence_alpha, convergence_beta
+        real(8) :: convergence_treshold, convergence_alpha, convergence_beta
         real(8) :: distance_ij, nuclear_repulsion
+
+        !output variables
+        real(8), intent(out) :: E_HF
+        real(8), intent(out) :: eps_alpha(:), eps_beta(:)
 
         !initializing D_previous matrix to 0 for the first iteration
         D_alpha_previous = 0.0_8
@@ -47,7 +50,7 @@ contains
         !initializing variables for scf loop
         convergence_treshold = 1.0d-9
         number_iterations_scf_loop = 0
-        
+
         !setting the maximum number of iterations
         maximum_number_iterations = 100
 
@@ -176,19 +179,6 @@ contains
         enddo
         !add nuclear repulsion
         E_HF = E_HF + nuclear_repulsion
-
-        !printing alpha and beta orbital energies
-        print '("Orbital energies for the alpha orbitals:")'
-        print '((F12.4), " Hartrees")', eps_alpha
-        print *, "---------------------"
-        print '("Orbital energies for the beta orbitals:")'
-        print '((F12.4), " Hartrees")', eps_beta
-        print *, "---------------------"
-        !printing hartree fock energy
-        print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
-        print *, "---------------------"
-        
-
     end subroutine
 
 

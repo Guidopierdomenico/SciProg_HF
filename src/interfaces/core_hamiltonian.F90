@@ -31,9 +31,7 @@ contains
         core_hamiltonian = T - V
         ! Diagonalize the core hamiltonian matrix
         call solve_genev (core_hamiltonian,S,C,eps)
-        print '("Orbital energies for the core Hamiltonian:")'
-        print '((F12.4), " Hartrees")', eps
-        print *, "---------------------"
+        
     end subroutine
 
 end module

@@ -9,6 +9,7 @@ program HartreeFock
   use SCF_loop
   use DIIS
   use core_hamiltonian
+  use InputOutput
   implicit none
 
   ! Variable containing the molecular structure
@@ -19,7 +20,7 @@ program HartreeFock
   integer  :: n_AO, n_occ
   integer  :: kappa, lambda, mu, nu
   real(8)  :: E_HF
-  real(8), allocatable :: core_hamiltonian(:,:), V(:,:),T(:,:),S(:,:), C(:,:), eps(:)
+  real(8), allocatable :: core_hamiltonian(:,:), S(:,:), C(:,:), eps(:)
   !array to hold atomic orbitals integrals
   real(8), allocatable :: ao_integrals (:,:,:,:)
   !variable for the number of atoms in the molecule
@@ -30,23 +31,13 @@ program HartreeFock
   integer :: DIIS_use
   !variable for number of alpha orbitals and number of beta orbitals
   integer :: n_alpha, n_beta, n_total
+  !variable for orbital energies
+  real(8), allocatable :: eps_alpha(:), eps_beta(:)
 
 
-  !asking user which file they want to analyze
-  print *, "please enter the name of the file"
-  print *, "---------------------"
-  read *, filename
-  print *, "you entered ", filename
-  print *, "---------------------"
-
-  !asking user whether they want to use DIIS or not
-  print *, "please enter you want to use the DIIS accellerator"
-  print *, "---------------------"
-  print *, "please enter 1 for yes, i do want to and 2 for no, I don't want to"
-  print *, "---------------------"
-  read *, DIIS_use
-  print *, "you entered ", DIIS_use
-  print *, "---------------------"
+  !asking user which file they want to analyze and whether they want to use DIIS or not
+  call Input_file(filename, DIIS_use)
+  
 
   ! Definition of the molecule
   call define_molecule(molecule, filename, number_atoms)
@@ -66,20 +57,27 @@ program HartreeFock
 
   !construct core hamiltonian
   call construct_core_hamiltonian(molecule, ao_basis, n_AO, core_hamiltonian, S, C, eps)
-
+  !print orbital energies for the core hamiltonian
+  call Print_core_hamiltoian_orbital_energies(eps)
 
   ! Compute all 2-electron integrals
   allocate (ao_integrals(n_AO,n_AO,n_AO,n_AO))
   call generate_2int (ao_basis,ao_integrals)
 
+  !allocating orbital energies for later printing
+  allocate(eps_alpha(n_AO))
+  allocate(eps_beta(n_AO))
+
+  !calculate hartree fock energy using SCF loop, with or without DIIS accelerator depending on user's choice
   if (DIIS_use == 1) then
-    call DIIS_loop(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals)
+    call DIIS_loop(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
   elseif (DIIS_use == 2) then
-    call Calculate_Hartree_Fock_Energy(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals)
+    call Calculate_Hartree_Fock_Energy(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
   else
     print '("you have entered the wrong number for the DIIS choice")'
   endif
   
-
-  
+  !print orbital energies and hartree fock eneregy
+  call Print_orbital_energies_after_SCF(eps_alpha, eps_beta)
+  call Print_HFenergy(E_HF)
 end program

@@ -6,14 +6,13 @@ module SCF_loop
     public Calculate_Hartree_Fock_Energy
 
 contains
-    subroutine Calculate_Hartree_Fock_Energy(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals)
+    subroutine Calculate_Hartree_Fock_Energy(molecule, n_AO, number_atoms, n_alpha, n_beta, core_hamiltonian, S, C, ao_integrals, E_HF, eps_alpha, eps_beta)
         ! Variable containing the molecular structure
         type(molecular_structure_t), intent(in) :: molecule
         ! Variable naming as in the description of the exercise
         real(8), intent(in) :: core_hamiltonian(:,:), S(:,:), C(:,:)
         integer, intent(in)  :: n_AO
         integer  :: kappa, lambda, mu, nu
-        real(8)  :: E_HF
         real(8), intent(in) :: ao_integrals (:,:,:,:)
         !variable for number of alpha orbitals and number of beta orbitals
         integer, intent(in) :: n_alpha, n_beta
@@ -34,13 +33,18 @@ contains
         !arrays to hold Fock matrices for both alpha spin and beta spin
         real(8)  :: F_alpha(n_AO,n_AO), F_beta(n_AO,n_AO)
         !arrays to hold coefficients and orbitals energies for both alpha spin and beta spin
-        real(8)  :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO), eps_alpha(n_AO), eps_beta(n_AO)
+        real(8)  :: C_alpha(n_AO,n_AO), C_beta(n_AO,n_AO)
         !array to hold density matrix calculated at the previous iteration, used to check for convergence
         real(8)  :: D_alpha_previous(n_AO,n_AO), D_beta_previous(n_AO,n_AO)
         !array to hold density matrices for alpha spin and for beta spin and total density matrix
         real(8)  :: D_alpha(n_AO,n_AO), D_beta(n_AO,n_AO), D_total(n_AO,n_AO)
         !variable for the maximum amount of iterations
         integer :: maximum_number_iterations
+
+        !output variables
+        real(8), intent(out) :: E_HF
+        real(8), intent(out) :: eps_alpha(:), eps_beta(:)
+
 
         !initializing variables for scf loop
         convergence_treshold = 1.0d-9
@@ -53,7 +57,7 @@ contains
         !initializing variables for scf loop
         convergence_treshold = 1.0d-9
         number_iterations_scf_loop = 0
-        
+
         !setting the maximum number of iterations
         maximum_number_iterations = 100
         !setting initial value of coeficcients matrices
@@ -126,17 +130,6 @@ contains
         enddo
         !add nuclear repulsion
         E_HF = E_HF + nuclear_repulsion
-
-        !printing alpha and beta orbital energies
-        print '("Orbital energies for the alpha orbitals:")'
-        print '((F12.4), " Hartrees")', eps_alpha
-        print *, "---------------------"
-        print '("Orbital energies for the beta orbitals:")'
-        print '((F12.4), " Hartrees")', eps_beta
-        print *, "---------------------"
-        !printing hartree fock energy
-        print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
-        print *, "---------------------"
     end subroutine
 
 end module
