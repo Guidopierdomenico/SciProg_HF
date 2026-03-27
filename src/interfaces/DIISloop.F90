@@ -1,6 +1,7 @@
 module DIIS
     use molecular_structure
     use Diagonalization
+    use LinearSystem
     implicit none
     private
     public DIIS_loop
@@ -15,7 +16,7 @@ contains
         real(8), intent(in)                     :: C(n_AO,n_AO)
         real(8), intent(in)                     :: ao_integrals(n_AO,n_AO,n_AO,n_AO)
 
-        !DIIS Parameter
+        !DIIS Parameter to set max amount of matrices to be held by DIIS memory arrays
         integer, parameter :: max_DIIS = 10
 
         !Standard Local Memory
@@ -43,6 +44,10 @@ contains
         D_alpha_previous = 0.0_8
         D_beta_previous = 0.0_8
 
+        !initializing variables for scf loop
+        convergence_treshold = 1.0d-9
+        number_iterations_scf_loop = 0
+        
         !setting the maximum number of iterations
         maximum_number_iterations = 100
 
@@ -50,17 +55,15 @@ contains
         C_alpha = C
         C_beta = C
         
-        !setting max amount of matrices to be held by DIIS memory arrays
-        max_DIIS = 10
-
         do
             number_iterations_scf_loop = number_iterations_scf_loop + 1
             !setting the loop variable for the DIIS loops
             m = min(number_iterations_scf_loop, max_DIIS)
             !if statement to exit loop if the maximum number of iterations has been exceded
             if (number_iterations_scf_loop > maximum_number_iterations) then
-            print *, "error: maximum number of iterations reached"
-            exit
+                print *, "error: maximum number of iterations reached"
+                print *, "-------------------------"
+                exit
             endif
 
             ! Form the density matrix

@@ -5,7 +5,7 @@
 
         integer, parameter, private:: REALD=8 ! default real for this module
 
-        public add_shell_to_basis, clear_basis 
+        public add_shell_to_basis, clear_basis, define_basis
 
 !       Basis function info:
         type, public:: basis_func_info_t
@@ -160,5 +160,5 @@
             enddo
          end subroutine
 
-       end module ao_basis
+end module ao_basis
 

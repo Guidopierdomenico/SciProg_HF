@@ -4,7 +4,7 @@
         implicit none
         private
 
-        public add_atoms_to_molecule
+        public add_atoms_to_molecule, define_molecule
         integer, parameter, private:: REALD=8 ! default real for this module
 
 !       Molecule:
@@ -76,6 +76,6 @@
           call add_atoms_to_molecule(molecule,charge,coord)
         end subroutine
   
-  end module molecular_structure
+end module molecular_structure
 
        

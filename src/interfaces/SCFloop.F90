@@ -42,9 +42,18 @@ contains
         !variable for the maximum amount of iterations
         integer :: maximum_number_iterations
 
+        !initializing variables for scf loop
+        convergence_treshold = 1.0d-9
+        number_iterations_scf_loop = 0
+
         !initializing D_previous matrix to 0 for the first iteration
         D_alpha_previous = 0.0_8
         D_beta_previous = 0.0_8
+
+        !initializing variables for scf loop
+        convergence_treshold = 1.0d-9
+        number_iterations_scf_loop = 0
+        
         !setting the maximum number of iterations
         maximum_number_iterations = 100
         !setting initial value of coeficcients matrices
