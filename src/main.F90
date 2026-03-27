@@ -19,7 +19,7 @@ program HartreeFock
   integer  :: n_AO, n_occ
   integer  :: kappa, lambda, mu, nu
   real(8)  :: E_HF
-  real(8), allocatable :: core_hamiltonian(:,:), F(:,:),V(:,:),T(:,:),S(:,:), C(:,:), eps(:), D(:,:)
+  real(8), allocatable :: core_hamiltonian(:,:), V(:,:),T(:,:),S(:,:), C(:,:), eps(:)
 
 
 
@@ -35,8 +35,8 @@ program HartreeFock
   integer :: number_iterations_scf_loop
   !variable to set the convergence treshold
   real(8) :: convergence_treshold
-  !variable to keep track of convergence
-  real(8) :: convergence
+  !variables to keep track of convergence for both Density matrices
+  real(8) :: convergence_alpha, convergence_beta
   !variable to calculate distance between a pair of atoms
   real(8) :: distance_ij
   !variable to calculate nuclear repulsion
@@ -47,8 +47,16 @@ program HartreeFock
   integer :: i, j
   !variable to hold the filename
   character(100) :: filename
+  !arrays to hold Fock matrices for both alpha spin and beta spin
+  real(8), allocatable  :: F_alpha(:,:), F_beta(:,:)
+  !arrays to hold coefficients and orbitals energies for both alpha spin and beta spin
+  real(8), allocatable  :: C_alpha(:,:), C_beta(:,:), eps_alpha(:), eps_beta(:)
   !array to hold density matrix calculated at the previous iteration, used to check for convergence
-  real(8), allocatable  :: D_previous(:,:)
+  real(8), allocatable  :: D_alpha_previous(:,:), D_beta_previous(:,:)
+  !array to hold density matrices for alpha spin and for beta spin and total density matrix
+  real(8), allocatable  :: D_alpha(:,:), D_beta(:,:), D_total(:,:)
+  !variable for number of alpha orbitals and number of beta orbitals
+  integer :: n_alpha, n_beta, n_total
   !variable for the maximum amount of iterations
   integer :: maximum_number_iterations
   
@@ -71,9 +79,10 @@ program HartreeFock
   call define_basis(ao_basis, molecule, number_atoms)
   n_AO = ao_basis%nao
 
-  ! Definition of the number of occupied orbitals
-  n_occ = sum(molecule%charge)/2 !total number of electrons is equal to the sum of all the nuclear charges in the molecule, and then n_occ is just the total number of electrons divided by 2
-
+  ! Definition of the number of  number of spin up and spin down orbitals
+  n_total = nint(sum(molecule%charge))
+  n_beta = n_total/2
+  n_alpha = n_total - n_beta
 
   ! Compute the overlap matrix
   allocate (S(n_AO,n_AO))
@@ -95,7 +104,7 @@ program HartreeFock
   allocate (eps(n_AO))
   call solve_genev (core_hamiltonian,S,C,eps)
   print '("Orbital energies for the core Hamiltonian:")'
-  print '((F12.4))', eps
+  print '((F12.4), " Hartrees")', eps
   print *, "---------------------"
 
   !initializing variables for scf loop
@@ -106,16 +115,26 @@ program HartreeFock
   allocate (ao_integrals(n_AO,n_AO,n_AO,n_AO))
   call generate_2int (ao_basis,ao_integrals)
 
-  !allocating memory for Fock matrix and Density matrix
-  allocate (F(n_AO,n_AO))
-  allocate (D(n_AO,n_AO))
-  allocate (D_previous(n_AO, n_AO))
+  !allocating memory for arrays used in SCF loop
+  allocate (D_alpha(n_AO,n_AO))
+  allocate (D_beta(n_AO,n_AO))
+  allocate (D_total(n_AO,n_AO))
+  allocate (D_alpha_previous(n_AO,n_AO))
+  allocate (D_beta_previous(n_AO,n_AO))
+  allocate (C_alpha(n_AO,n_AO))
+  allocate (C_beta(n_AO,n_AO))
+  allocate (eps_alpha(n_AO))
+  allocate (eps_beta(n_AO))
   !initializing D_previous matrix to 0 for the first iteration
-  D_previous = 0.0_8
+  D_alpha_previous = 0.0_8
+  D_beta_previous = 0.0_8
 
   !setting the maximum number of iterations
   maximum_number_iterations = 100
 
+  !setting initial value of coeficcients matrices
+  C_alpha = C
+  C_beta = C
   !SCF loop
   do
   number_iterations_scf_loop = number_iterations_scf_loop + 1
@@ -129,22 +148,27 @@ program HartreeFock
   ! Form the density matrix
     do lambda = 1, n_AO
         do kappa = 1, n_AO
-          D(kappa,lambda) = sum(C(kappa,1:n_occ)*C(lambda,1:n_occ))
+          D_alpha(kappa,lambda) = sum(C_alpha(kappa,1:n_alpha)*C_alpha(lambda,1:n_alpha))
+          D_beta(kappa,lambda) = sum(C_beta(kappa,1:n_beta)*C_beta(lambda,1:n_beta))
       end do
     end do
+    D_total = D_alpha + D_beta
     !Construct  the Fock matrix
-    F = core_hamiltonian
+    F_alpha = core_hamiltonian
+    F_beta = core_hamiltonian
     do nu = 1, n_AO
       do mu = 1, n_AO
-        F = F + (2.D0 * ao_integrals(:,:,mu,nu) - ao_integrals(:,nu,mu,:))* D(mu, nu)
+        F_alpha = F_alpha + (ao_integrals(:,:,mu,nu))* D_total(mu, nu) - ao_integrals(:,nu,mu,:)*D_alpha(mu, nu)
+        F_beta = F_beta + (ao_integrals(:,:,mu,nu))* D_total(mu, nu) - ao_integrals(:,nu,mu,:)*D_beta(mu, nu)
       enddo
     enddo
     ! Compute the Hartree-Fock energy
-    E_HF = sum((core_hamiltonian+F) * D)
+    E_HF = 0.5D0 * sum((core_hamiltonian + F_alpha) * D_alpha) + 0.5D0 * sum((core_hamiltonian + F_beta) * D_beta)
     !calculate convergence
-    convergence = sqrt( sum ( abs( (D-D_previous)**2)))
+    convergence_alpha = sqrt( sum ( abs( (D_alpha-D_alpha_previous)**2)))
+    convergence_beta = sqrt( sum ( abs( (D_beta-D_beta_previous)**2)))
     !exit loop if convergence is lower than treshold
-    if (abs(convergence) < convergence_treshold) then
+    if ((abs(convergence_alpha) < convergence_treshold) .and. (abs(convergence_beta) < convergence_treshold)) then
       print *, "convergence reached"
       print *, "---------------------"
       print *, "Number of steps needed to converge: ", number_iterations_scf_loop
@@ -153,16 +177,19 @@ program HartreeFock
     endif
 
 
+
     !update previous density
-    D_previous = D
+    D_alpha_previous = D_alpha
+    D_beta_previous = D_beta
     ! Diagonalize the Fock matrix to get new coefficients
-    call solve_genev (F,S,C,eps)
+    call solve_genev (F_alpha,S,C_alpha,eps_alpha)
+    call solve_genev (F_beta,S,C_beta,eps_beta)
 
 
   enddo
 
 
-  !add nuclear repulsion
+  !compute nuclear repulsion
   nuclear_repulsion = 0.0_8
   do j = 2, number_atoms
     do i = 1, j-1
@@ -172,11 +199,15 @@ program HartreeFock
       nuclear_repulsion = nuclear_repulsion + (molecule%charge(i)*molecule%charge(j))/distance_ij
     enddo
   enddo
+  !add nuclear repulsion
   E_HF = E_HF + nuclear_repulsion
 
-  !printing orbital energies after SCF loop
-  print '("Orbital energies after SCF loop:")'
-  print '((F12.4), " Hartrees")', eps
+  !printing alpha and beta orbital energies
+  print '("Orbital energies for the alpha orbitals:")'
+  print '((F12.4), " Hartrees")', eps_alpha
+  print *, "---------------------"
+  print '("Orbital energies for the beta orbitals:")'
+  print '((F12.4), " Hartrees")', eps_beta
   print *, "---------------------"
   !printing hartree fock energy
   print '("The Hartree-Fock energy:    ", (F12.4), " Hartrees")', E_HF 
