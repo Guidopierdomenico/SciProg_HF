@@ -11,7 +11,7 @@ This repository contains an implementation of the Unrestricted Hartree-Fock (UHF
 ## Repository Structure
 * `src/`: Contains all Fortran modules and the main program.
 * `water.txt`: Example molecular input file (see also  `h2molecule.txt`, `hydroxyl.txt`).
-* `documentation/`: Summary program, Detailed description subroutines and modules
+* `documentation/`: Summary program, Detailed description subroutines and modules, input/output example, flow chart.
 * `Makefile`: Automated build system for easy compilation.
 
 ##  Installation and Usage
