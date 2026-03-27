@@ -5,7 +5,7 @@
 
         integer, parameter, private:: REALD=8 ! default real for this module
 
-        public add_shell_to_basis, clear_basis 
+        public add_shell_to_basis, clear_basis, define_basis
 
 !       Basis function info:
         type, public:: basis_func_info_t
@@ -128,5 +128,37 @@
            n_ang = (angular+1)*(angular+2)/2
          end function
 
-       end module ao_basis
+         subroutine define_basis(ao_basis, molecule, number_atoms)
+            use molecular_structure
+            type(basis_set_info_t), intent(inout)   :: ao_basis
+            type(basis_func_info_t)                 :: gto
+            integer, intent(in)                     :: number_atoms
+            type(molecular_structure_t), intent(in) :: molecule
+            integer                                 :: i
+            !do loop to place the basis function on molecule coordinates
+            do i = 1, number_atoms
+               !for hydrogen 3 s functions
+               if (molecule%charge(i) == 1) then
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)  
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+               else
+               !for all non-hydrogen elements 5 s functions, 3 p functions and 1 d function
+               !s functions
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D-1)
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),35.D-2)
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D0)
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),3.D0)
+               call add_shell_to_basis(ao_basis,0,molecule%coord(:,i),1.D1)
+               !p functions
+               call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),2.D-1)
+               call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),1.D0)
+               call add_shell_to_basis(ao_basis,1,molecule%coord(:,i),5.D0)
+               !d function
+               call add_shell_to_basis(ao_basis,2,molecule%coord(:,i),1.D0)
+               endif
+            enddo
+         end subroutine
+
+end module ao_basis
 
